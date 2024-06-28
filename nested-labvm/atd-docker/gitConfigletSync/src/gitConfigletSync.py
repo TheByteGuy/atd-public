@@ -32,14 +32,14 @@ def syncConfiglet(cvpClient,configletName,configletConfig):
       configletCurrentDate = configlet['dateTimeInLongFormat']
       # If it does, check to see if the config is in sync, if not update the config with the one in Git
       if configletConfig == configletCurrentConfig:
-        pS("OK", "Configlet {0} exists and is up to date!".format(configletName))
+        pS("OK", f"Configlet {configletName} exists and is up to date!")
       else:
         cvpClient.api.update_configlet(configletConfig,configletKey,configletName)
-        pS("OK", "Configlet {0} exists and is now up to date".format(configletName))
+        pS("OK", f"Configlet {configletName} exists and is now up to date")
      
    except:
       addConfiglet = cvpClient.api.add_configlet(configletName,configletConfig)
-      pS("OK", "Configlet {0}has been added".format(configletName))
+      pS("OK", f"Configlet {configletName}has been added")
 
 ##### End of syncConfiglet
 
@@ -62,22 +62,22 @@ def checkConnected(cvp_clnt, NODES):
     """
     tmp_device_count = len(cvp_clnt.inventory)
     while len(NODES) > tmp_device_count:
-        pS("INFO", "Only {0} out of {1} nodes have registered to CVP. Sleeping {2} seconds.".format(tmp_device_count, len(NODES), sleep_delay))
+        pS("INFO", f"Only {tmp_device_count} out of {len(NODES)} nodes have registered to CVP. Sleeping {sleep_delay} seconds.")
         sleep(sleep_delay)
         cvp_clnt.getDeviceInventory()
         tmp_device_count = len(cvp_clnt.inventory)
-    pS("OK", "All {0} out of {1} nodes have registered to CVP.".format(tmp_device_count, len(NODES)))
+    pS("OK", f"All {tmp_device_count} out of {NODES} nodes have registered to CVP.")
     pS("INFO", "Checking to see if all nodes are reachable")
     # Make sure all nodes are up and reachable
     for vnode in cvp_clnt.inventory:
         while True:
-            vresponse = cvp_clnt.ipConnectivityTest(cvp_clnt.inventory[vnode]['ipAddress'])
+            vresponse = cvp_clnt.ipConnectivityTest(cvp_clnt.inventory[vnode]['ipAddress']) # U can skip this dont update to cvprac this is for ping check
             if 'data' in vresponse:
                 if vresponse['data'] == 'success':
-                    pS("OK", "{0} is up and reachable at {1}".format(vnode, cvp_clnt.inventory[vnode]['ipAddress']))
+                    pS("OK", f"{vnode} is up and reachable at {cvp_clnt.inventory[vnode]['ipAddress']}")
                     break
             else:
-                pS("INFO", "{0} is NOT reachable at {1}. Sleeping {2} seconds.".format(vnode, cvp_clnt.inventory[vnode]['ipAddress'], sleep_delay))
+                pS("INFO", f"{vnode} is NOT reachable at {cvp_clnt.inventory[vnode]['ipAddress']}. Sleeping {sleep_delay} seconds.")
                 sleep(sleep_delay)
     pS("OK", "All Devices are registered and reachable.")
     return(True)
@@ -99,7 +99,7 @@ def main():
       if os.path.exists(ACCESS):
          break
       else:
-         pS("ERROR", "ACCESS_INFO file is not available...Waiting for {0} seconds".format(sleep_delay))
+         pS("ERROR", f"ACCESS_INFO file is not available...Waiting for {sleep_delay} seconds")
          time.sleep(sleep_delay)
    try:
       f = open(ACCESS)
@@ -148,7 +148,7 @@ def main():
    while not cvp_clnt:
       try:
          cvp_clnt = CVPCON(accessinfo['nodes']['cvp'][0]['ip'],cvpUsername,cvpPassword)
-         pS("OK", "Connected to CVP at {0}".format(accessinfo['nodes']['cvp'][0]['ip']))
+         pS("OK", f"Connected to CVP at {accessinfo['nodes']['cvp'][0]['ip']}")
       except:
          pS("iBerg", "CVP is currently unavailable....Retrying in 30 seconds.")
          time.sleep(30)
@@ -167,9 +167,9 @@ def main():
          cvprac_clnt.api.request_timeout = 180
          cvprac_clnt.connect([accessinfo['nodes']['cvp'][0]['ip']], cvpUsername, cvpPassword)
          cvprc_clnt = CVPCON(accessinfo['nodes']['cvp'][0]['ip'], cvpUsername, cvpPassword)
-         pS("OK","Connected to CVP at {0}".format(accessinfo['nodes']['cvp'][0]['ip']))
+         pS("OK", f"Connected to CVP at {accessinfo['nodes']['cvp'][0]['ip']}")
       except:
-         pS("ERROR","CVP is currently unavailable....Retrying in {0} seconds.".format(sleep_delay))
+         pS("ERROR", f"CVP is currently unavailable....Retrying in {sleep_delay} seconds.")
          sleep(sleep_delay)
    
    # ==========================================
@@ -211,7 +211,7 @@ def main():
                pS("INFO", f"Transferring token to {devn}")
                scp.put(f"{_token_path}", "/tmp/token")
    else:
-      pS("INFO", f"Version does not require a token for onboarding...")
+      pS("INFO", "Version does not require a token for onboarding...")
 
    # ==========================================
    # Check to see how many nodes have connected
@@ -229,30 +229,31 @@ def main():
          if '.py' in configletName:
             # Check for a form file
             if configletName.replace('.py', '.form') in configlets:
-               pS("INFO", "Form data found for {0}".format(new_configletName))
+               pS("INFO", f"Form data found for {new_configletName}")
                with open(gitTempPath + configletPath + configletName.replace('.py', '.form'), 'r') as configletData:
                   configletForm = configletData.read()
                configletFormData = yaml.safe_load(configletForm)['FormList']
             else:
                configletFormData = []
             res = cvp_clnt.impConfiglet("builder",new_configletName,configletConfig, configletFormData)
-            pS("OK", "{0} Configlet Builder: {1}".format(res[0],new_configletName))
+            pS("OK", f"{res[0]} Configlet Builder: {new_configletName}")
          elif '.form' in configletName:
             # Ignoring .form files here
             pass
          else:
             res = cvp_clnt.impConfiglet("static",configletName,configletConfig)
-            pS("OK", "{0} Configlet: {1}".format(res[0],configletName))
+            pS("OK", f"{res[0]} Configlet: {configletName}")
+
    # Perform a check to see if there any pending tasks to be executed due to configlet update
    time.sleep(20)
    pS("INFO", "Checking for any pending tasks")
    cvp_clnt.getAllTasks("pending")
    if cvp_clnt.tasks['pending']:
-      pS("INFO", "{0} Pending tasks found, will be executing".format(len(cvp_clnt.tasks['pending'])))
+      pS("INFO", f"{len(cvp_clnt.tasks['pending'])} Pending tasks found, will be executing")
       task_response = cvp_clnt.execAllTasks("pending")
       time.sleep(10)
       while len(cvp_clnt.tasks['pending']) > 0:
-         pS("INFO", "{0} Pending tasks found, will be executing".format(len(cvp_clnt.tasks['pending'])))
+         pS("INFO", f"{len(cvp_clnt.tasks['pending'])} Pending tasks found, will be executing")
          _tmp_response = cvp_clnt.execAllTasks("pending")
          time.sleep(5)
          cvp_clnt.getAllTasks("pending")
@@ -264,14 +265,15 @@ def main():
             while task_status != "Completed":
                task_status = cvp_clnt.getTaskStatus(task_id)['taskStatus']
                if task_status == 'Failed':
-                     pS("iBerg", "Task ID: {0} Status: {1}".format(task_id, task_status))
+                     pS("iBerg", f"Task ID: {task_id} Status: {task_status}")
                      break
                elif task_status == 'Completed':
-                     pS("INFO", "Task ID: {0} Status: {1}".format(task_id, task_status))
+                     pS("INFO", f"Task ID: {task_id} Status: {task_status}")
                      break
                else:
-                     pS("INFO", "Task ID: {0} Status: {1}, Waiting 10 seconds...".format(task_id, task_status))
+                     pS("INFO", f"Task ID: {task_id} Status: {task_status}, Waiting 10 seconds...")
                      time.sleep(10)
+                     
       # Perform check to see if any tasks failed
       cvp_clnt.getAllTasks("failed")
       if len(cvp_clnt.tasks["failed"]) > 0:
@@ -284,13 +286,13 @@ def main():
                while task_status != "Completed":
                   task_status = cvp_clnt.getTaskStatus(task_id)['taskStatus']
                   if task_status == 'Failed':
-                        pS("iBerg", "Task ID: {0} Status: {1}".format(task_id, task_status))
+                        pS("iBerg", f"Task ID: {task_id} Status: {task_status}")
                         break
                   elif task_status == 'Completed':
-                        pS("INFO", "Task ID: {0} Status: {1}".format(task_id, task_status))
+                        pS("INFO", f"Task ID: {task_id} Status: {task_status}")
                         break
                   else:
-                        pS("INFO", "Task ID: {0} Status: {1}, Waiting 10 seconds...".format(task_id, task_status))
+                        pS("INFO", f"Task ID: {task_id} Status: {task_status}, Waiting 10 seconds...")
                         time.sleep(10)
    else:
       pS("INFO", "No pending tasks found to be executed.")
