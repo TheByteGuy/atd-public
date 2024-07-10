@@ -7,6 +7,7 @@ import yaml
 from ruamel.yaml import YAML
 from rcvpapi.rcvpapi import *
 from cvprac.cvp_client import CvpClient
+from cvprac.cvp_client_errors import CvpApiError
 from paramiko import SSHClient
 from paramiko import AutoAddPolicy
 from scp import SCPClient
@@ -220,6 +221,9 @@ def main():
 
    configlets = os.listdir(gitTempPath + configletPath)
 
+   client = CvpClient()
+   client.connect([accessinfo['nodes']['cvp'][0]['ip']], cvpUsername, cvpPassword)
+
    for configletName in configlets:
       if configletName not in ignoreConfiglets:
          with open(gitTempPath + configletPath + configletName, 'r') as configletData:
@@ -235,14 +239,43 @@ def main():
                configletFormData = yaml.safe_load(configletForm)['FormList']
             else:
                configletFormData = []
-            res = cvp_clnt.impConfiglet("builder",new_configletName,configletConfig, configletFormData)
-            pS("OK", f"{res[0]} Configlet Builder: {new_configletName}")
+               cCheck = client.api.get_configlet_by_name(str(new_configletName))
+               try:
+                  if 'key' in cCheck:
+                     cCheckKey = cCheck['key']   
+                     res = client.api.update_configlet_builder(new_configletName, str(cCheckKey), configletConfig) 
+                     # res format: {'eventId': '', 'data': 'success'}
+                     if res['data'] == 'success':
+                        pS("OK", f"Configlet Builder {new_configletName} successfully updated.")
+                     else:
+                        pS("ERROR", f"Configlet Builder {new_configletName} failed to update.")
+                  else:
+                     res = client.api.add_configlet_builder(new_configletName, configletConfig)
+                     #pS("DEBUG", f"add res: {str(res)}") ====================================================> I Do not actually know the format of res for the add_configlet_builder and what it returns so I am unsure on how to build into a check to see if it succsfully added configlet builder, this is a prolem because I havent encountered any time where the script needed to add anything
+                     if res:
+                        pS("OK", f"Configlet Builder {new_configletName} successfully added.")
+                     else:
+                        pS("ERROR", f"Configlet Builder {new_configletName} failed to add.")
+               except CvpApiError as e:
+                  pS("ERROR", f"Error updating or adding configlet builder with new_configletName: {new_configletName}: {e}")
          elif '.form' in configletName:
             # Ignoring .form files here
             pass
-         else:
-            res = cvp_clnt.impConfiglet("static",configletName,configletConfig)
-            pS("OK", f"{res[0]} Configlet: {configletName}")
+         else: # This is for static configlets and will check if it exists and update if needed and if not will add it
+            cCheck = client.api.get_configlet_by_name(configletName)    # To get cCheck format: pS("DEBUG", "testCer: " + str(testCer))
+            try:
+               if 'key' in cCheck:
+                  cCheckKey = cCheck['key']
+                  res = client.api.update_configlet(configletConfig, str(cCheckKey), configletName)
+                  pS("OK", f"{res['data']}")    # res format: {'data': 'Configlet L3LS-OSPF_s1-leaf2 successfully updated.'}
+               else:
+                  res = client.api.add_configlet(configletName, configletConfig)
+                  if res:
+                     pS("OK", f"Added Configlet {configletName}")
+                  else:
+                     pS("ERROR", f"Error Adding Configlet {configletName}") 
+            except CvpApiError as e:
+               pS("ERROR", f"Error updating or adding configlet with configletName: {configletName}: {e}")
 
    # Perform a check to see if there any pending tasks to be executed due to configlet update
    time.sleep(20)
@@ -301,7 +334,7 @@ def main():
 if __name__ == '__main__':
    # Check to see if cvpUpdater has already run
    if os.path.exists(CVP_CONFIG_FIILE):
-      pS("INFO", "CVP Already configured....Updating configlets.")
+      pS("INFO", "CVP Already configured....Updating configlets. Test: BRUHH")
       main()
       pS("OK", "Configlet sync complete")
    else:
