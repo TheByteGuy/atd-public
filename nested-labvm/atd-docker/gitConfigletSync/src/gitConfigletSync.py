@@ -72,7 +72,7 @@ def checkConnected(cvp_clnt, NODES):
     # Make sure all nodes are up and reachable
     for vnode in cvp_clnt.inventory:
         while True:
-            vresponse = cvp_clnt.ipConnectivityTest(cvp_clnt.inventory[vnode]['ipAddress']) # U can skip this dont update to cvprac this is for ping check
+            vresponse = cvp_clnt.ipConnectivityTest(cvp_clnt.inventory[vnode]['ipAddress'])
             if 'data' in vresponse:
                 if vresponse['data'] == 'success':
                     pS("OK", f"{vnode} is up and reachable at {cvp_clnt.inventory[vnode]['ipAddress']}")
@@ -239,8 +239,8 @@ def main():
                configletFormData = yaml.safe_load(configletForm)['FormList']
             else:
                configletFormData = []
-               cCheck = client.api.get_configlet_by_name(str(new_configletName))
                try:
+                  cCheck = client.api.get_configlet_by_name(str(new_configletName))
                   if 'key' in cCheck:
                      cCheckKey = cCheck['key']   
                      res = client.api.update_configlet_builder(new_configletName, str(cCheckKey), configletConfig) 
@@ -251,7 +251,6 @@ def main():
                         pS("ERROR", f"Configlet Builder {new_configletName} failed to update.")
                   else:
                      res = client.api.add_configlet_builder(new_configletName, configletConfig)
-                     #pS("DEBUG", f"add res: {str(res)}") ====================================================> I Do not actually know the format of res for the add_configlet_builder and what it returns so I am unsure on how to build into a check to see if it succsfully added configlet builder, this is a prolem because I havent encountered any time where the script needed to add anything
                      if res:
                         pS("OK", f"Configlet Builder {new_configletName} successfully added.")
                      else:
@@ -334,7 +333,7 @@ def main():
 if __name__ == '__main__':
    # Check to see if cvpUpdater has already run
    if os.path.exists(CVP_CONFIG_FIILE):
-      pS("INFO", "CVP Already configured....Updating configlets. Test: BRUHH")
+      pS("INFO", "CVP Already configured....")
       main()
       pS("OK", "Configlet sync complete")
    else:
